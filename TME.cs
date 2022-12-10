@@ -92,7 +92,7 @@ namespace PROJECTNAMEHERE
                     }
                     typeof(LandfallContentDatabase).GetField("m_projectiles", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(CDB, objdict);
                 }
-                if (weapons.Count > 0)
+                if (combatMoves.Count > 0)
                 {
                     Dictionary<DatabaseID, GameObject> objdict = (Dictionary<DatabaseID, GameObject>)typeof(LandfallContentDatabase).GetField("m_combatMoves", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(CDB);
                     foreach (var obj in combatMoves)
