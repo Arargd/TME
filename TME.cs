@@ -9,9 +9,9 @@ using System.Linq;
 using UnityEngine;
 using Landfall.TABS.UnitEditor;
 
-namespace CoolTABSMod
+namespace PROJECTNAMEHERE
 {
-    public class TME : PROJECTNAMEHERE
+    public class TME : MonoBehaviour
     {
         public static MapAsset MapToLoad;
         public static GameModeState GameMode = GameModeState.Sandbox;
