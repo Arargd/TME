@@ -1,4 +1,4 @@
-﻿using DM;
+using DM;
 using HarmonyLib;
 using Landfall.TABS;
 using Landfall.TABS.GameMode;
@@ -7,10 +7,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEngine;
+using Landfall.TABS.UnitEditor;
 
-namespace PROJECTNAMEHERE 
+namespace CoolTABSMod
 {
-    public class TME : MonoBehaviour
+    public class TME : PROJECTNAMEHERE
     {
         public static MapAsset MapToLoad;
         public static GameModeState GameMode = GameModeState.Sandbox;
@@ -43,6 +44,7 @@ namespace PROJECTNAMEHERE
                 //Filter lists out based on their components due to the fact that all of the prefabs are gameobjects and cant be loaded directly as weaponitem for instance
                 List<WeaponItem> weapons = prefabs.Where(x => x.GetComponent<WeaponItem>() != null).Select(x => x.GetComponent<WeaponItem>()).ToList();
                 List<ProjectileEntity> projectiles = prefabs.Where(x => x.GetComponent<ProjectileEntity>() != null).Select(x => x.GetComponent<ProjectileEntity>()).ToList();
+                List<SpecialAbility> combatMoves = prefabs.Where(x => x.GetComponent<SpecialAbility>() != null).Select(x => x.GetComponent<SpecialAbility>()).ToList();
                 List<PropItem> props = prefabs.Where(x => x.GetComponent<PropItem>() != null).Select(x => x.GetComponent<PropItem>()).ToList();
                 //Load assets that are directly loadable like Faction
                 List<UnitBlueprint> blueprints = assetbundle.LoadAllAssets<UnitBlueprint>().ToList();
@@ -89,6 +91,27 @@ namespace PROJECTNAMEHERE
                         nonStreamableAssets.Add(obj.Entity.GUID, obj.gameObject);
                     }
                     typeof(LandfallContentDatabase).GetField("m_projectiles", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(CDB, objdict);
+                }
+                if (weapons.Count > 0)
+                {
+                    Dictionary<DatabaseID, GameObject> objdict = (Dictionary<DatabaseID, GameObject>)typeof(LandfallContentDatabase).GetField("m_combatMoves", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(CDB);
+                    foreach (var obj in combatMoves)
+                    {
+                        if (reload)
+                        {
+                            if (objdict.ContainsKey(obj.Entity.GUID))
+                            {
+                                objdict.Remove(obj.Entity.GUID);
+                            }
+                            if (nonStreamableAssets.ContainsKey(obj.Entity.GUID))
+                            {
+                                nonStreamableAssets.Remove(obj.Entity.GUID);
+                            }
+                        }
+                        objdict.Add(obj.Entity.GUID, obj.gameObject);
+                        nonStreamableAssets.Add(obj.Entity.GUID, obj.gameObject);
+                    }
+                    typeof(LandfallContentDatabase).GetField("m_combatMoves", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(CDB, objdict);
                 }
                 if (props.Count > 0)
                 {
