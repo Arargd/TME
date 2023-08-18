@@ -2,86 +2,195 @@ using DM;
 using HarmonyLib;
 using Landfall.TABS;
 using Landfall.TABS.GameMode;
+using System.Reflection;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using UnityEngine;
+using System;
 
-namespace TABSModdingEssentials
+namespace PROJECTNAMEHERE
 {
-    public class TME
+    public class TME : MonoBehaviour
     {
-        public static void LoadAssets()
-        {
-            LandfallContentDatabase CDB = ContentDatabase.Instance().LandfallContentDatabase;
-            AssetBundle assetbundle = AssetBundle.LoadFromFile(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "swordtest"));
-            //Load all our prefabs in
-            List<GameObject> prefabs = assetbundle.LoadAllAssets<GameObject>().ToList();
-            //Filter lists out based on their components due to the fact that all of the prefabs are gameobjects and cant be loaded directly as weaponitem for instance
-            List<WeaponItem> weapons = prefabs.Where(x => x.TryGetComponent<WeaponItem>(out WeaponItem weap) == true).Select(x => x.GetComponent<WeaponItem>()).ToList();
-            List<ProjectileEntity> projectiles = prefabs.Where(x => x.TryGetComponent<ProjectileEntity>(out ProjectileEntity projectile) == true).Select(x => x.GetComponent<ProjectileEntity>()).ToList();
-            List<PropItem> props = prefabs.Where(x => x.TryGetComponent<PropItem>(out PropItem prop) == true).Select(x => x.GetComponent<PropItem>()).ToList();
-            //Load assets that are directly loadable like Faction
-            List<UnitBlueprint> blueprints = assetbundle.LoadAllAssets<UnitBlueprint>().ToList();
-            List<Faction> factions = assetbundle.LoadAllAssets<Faction>().ToList();
-            //Load the various types of assets
-            if (prefabs.Count > 0)
-            {
-                foreach (var obj in prefabs)
-                {
-                    Unit ubase = obj.GetComponent<Unit>();
-                    if (ubase != null)
-                    {
-                        CDB.m_unitBases.Add(ubase.Entity.GUID, obj);
-                        ContentDatabase.Instance().AssetLoader.m_nonStreamableAssets.Add(ubase.Entity.GUID, obj);
-                    }
-                }
-            }
-            if (weapons.Count > 0)
-            {
-                foreach (var obj in weapons)
-                {
-                    CDB.m_weapons.Add(obj.Entity.GUID, obj.gameObject);
-                    ContentDatabase.Instance().AssetLoader.m_nonStreamableAssets.Add(obj.Entity.GUID, obj.gameObject);
-                }
-            }
-            if (projectiles.Count > 0)
-            {
-                foreach (var obj in projectiles)
-                {
-                    CDB.m_projectiles.Add(obj.Entity.GUID, obj.gameObject);
-                    ContentDatabase.Instance().AssetLoader.m_nonStreamableAssets.Add(obj.Entity.GUID, obj.gameObject);
-                }
-            }
-            if (props.Count > 0)
-            {
-                foreach (var obj in props)
-                {
-                    CDB.m_characterProps.Add(obj.Entity.GUID, obj.gameObject);
-                    ContentDatabase.Instance().AssetLoader.m_nonStreamableAssets.Add(obj.Entity.GUID, obj.gameObject);
-                }
-            }
-            if (blueprints.Count > 0)
-            {
-                foreach (var obj in blueprints)
-                {
-                    CDB.m_unitBlueprints.Add(obj.Entity.GUID, obj);
-                    ContentDatabase.Instance().AssetLoader.m_nonStreamableAssets.Add(obj.Entity.GUID, obj);
-                }
-            }
-            if (factions.Count > 0)
-            {
-                foreach (var obj in factions)
-                {
-                    CDB.m_factions.Add(obj.Entity.GUID, obj);
-                    ContentDatabase.Instance().AssetLoader.m_nonStreamableAssets.Add(obj.Entity.GUID, obj);
-                }
-            }
-        }
         public static MapAsset MapToLoad;
         public static GameModeState GameMode = GameModeState.Sandbox;
         public static bool quickboot;
+        public static bool hotbundle;
+        public static void LoadAssets(bool reload)
+        {
+            LandfallContentDatabase CDB = ContentDatabase.Instance().LandfallContentDatabase;
+            string customfolder = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "TMEBundles");
+            if (Directory.Exists(customfolder) == false)
+            {
+                Debug.LogError("No TMEBundles Folder Exists!!!");
+                return;
+            }
+            string[] assetbundles = Directory.GetFiles(customfolder);
+            if (assetbundles.Count() < 1)
+            {
+                Debug.LogError("No Bundles in Folder!!!");
+                return;
+            }
+            foreach (var assetfile in assetbundles)
+            {
+                if (reload)
+                {
+                    AssetBundle.UnloadAllAssetBundles(true);
+                }
+                AssetBundle assetbundle = AssetBundle.LoadFromFile(assetfile);
+                //Load all our prefabs in
+                List<GameObject> prefabs = assetbundle.LoadAllAssets<GameObject>().ToList();
+                //Filter lists out based on their components due to the fact that all of the prefabs are gameobjects and cant be loaded directly as weaponitem for instance
+                List<WeaponItem> weapons = prefabs.Where(x => x.GetComponent<WeaponItem>() != null).Select(x => x.GetComponent<WeaponItem>()).ToList();
+                List<ProjectileEntity> projectiles = prefabs.Where(x => x.GetComponent<ProjectileEntity>() != null).Select(x => x.GetComponent<ProjectileEntity>()).ToList();
+                List<PropItem> props = prefabs.Where(x => x.GetComponent<PropItem>() != null).Select(x => x.GetComponent<PropItem>()).ToList();
+                //Load assets that are directly loadable like Faction
+                List<UnitBlueprint> blueprints = assetbundle.LoadAllAssets<UnitBlueprint>().ToList();
+                List<Faction> factions = assetbundle.LoadAllAssets<Faction>().ToList();
+                //Load the various types of assets
+                Dictionary<DatabaseID, UnityEngine.Object> nonStreamableAssets = (Dictionary<DatabaseID, UnityEngine.Object>)typeof(AssetLoader).GetField("m_nonStreamableAssets", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(ContentDatabase.Instance().AssetLoader);
+                if (prefabs.Count > 0)
+                {
+                    Dictionary<DatabaseID, GameObject> objdict = (Dictionary<DatabaseID, GameObject>)typeof(LandfallContentDatabase).GetField("m_unitBases", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(CDB);
+                    foreach (var obj in prefabs)
+                    {
+                        Unit ubase = obj.GetComponent<Unit>();
+                        if (ubase != null)
+                        {
+                            if (reload)
+                            {
+                                if (objdict.ContainsKey(ubase.Entity.GUID))
+                                {
+                                    objdict.Remove(ubase.Entity.GUID);
+                                }
+                                if (nonStreamableAssets.ContainsKey(ubase.Entity.GUID))
+                                {
+                                    nonStreamableAssets.Remove(ubase.Entity.GUID);
+                                }
+                            }
+                            objdict.Add(ubase.Entity.GUID, obj.gameObject);
+                            nonStreamableAssets.Add(ubase.Entity.GUID, obj.gameObject);
+                        }
+                    }
+                    typeof(LandfallContentDatabase).GetField("m_unitBases", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(CDB, objdict);
+                }
+                if (weapons.Count > 0)
+                {
+                    Dictionary<DatabaseID, GameObject> objdict = (Dictionary<DatabaseID, GameObject>)typeof(LandfallContentDatabase).GetField("m_weapons", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(CDB);
+                    foreach (var obj in weapons)
+                    {
+                        if (reload)
+                        {
+                            if (objdict.ContainsKey(obj.Entity.GUID))
+                            {
+                                objdict.Remove(obj.Entity.GUID);
+                            }
+                            if (nonStreamableAssets.ContainsKey(obj.Entity.GUID))
+                            {
+                                nonStreamableAssets.Remove(obj.Entity.GUID);
+                            }
+                        }
+                        objdict.Add(obj.Entity.GUID, obj.gameObject);
+                        nonStreamableAssets.Add(obj.Entity.GUID, obj.gameObject);
+                    }
+                    typeof(LandfallContentDatabase).GetField("m_weapons", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(CDB, objdict);
+                }
+                if (projectiles.Count > 0)
+                {
+                    Dictionary<DatabaseID, GameObject> objdict = (Dictionary<DatabaseID, GameObject>)typeof(LandfallContentDatabase).GetField("m_projectiles", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(CDB);
+                    foreach (var obj in projectiles)
+                    {
+                        if (reload)
+                        {
+                            if (objdict.ContainsKey(obj.Entity.GUID))
+                            {
+                                objdict.Remove(obj.Entity.GUID);
+                            }
+                            if (nonStreamableAssets.ContainsKey(obj.Entity.GUID))
+                            {
+                                nonStreamableAssets.Remove(obj.Entity.GUID);
+                            }
+                        }
+                        objdict.Add(obj.Entity.GUID, obj.gameObject);
+                        nonStreamableAssets.Add(obj.Entity.GUID, obj.gameObject);
+                    }
+                    typeof(LandfallContentDatabase).GetField("m_projectiles", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(CDB, objdict);
+                }
+                if (props.Count > 0)
+                {
+                    Dictionary<DatabaseID, GameObject> objdict = (Dictionary<DatabaseID, GameObject>)typeof(LandfallContentDatabase).GetField("m_characterProps", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(CDB);
+                    foreach (var obj in props)
+                    {
+                        if (reload)
+                        {
+                            if (objdict.ContainsKey(obj.Entity.GUID))
+                            {
+                                objdict.Remove(obj.Entity.GUID);
+                            }
+                            if (nonStreamableAssets.ContainsKey(obj.Entity.GUID))
+                            {
+                                nonStreamableAssets.Remove(obj.Entity.GUID);
+                            }
+                        }
+                        objdict.Add(obj.Entity.GUID, obj.gameObject);
+                        nonStreamableAssets.Add(obj.Entity.GUID, obj.gameObject);
+                    }
+                    typeof(LandfallContentDatabase).GetField("m_characterProps", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(CDB, objdict);
+                }
+                if (blueprints.Count > 0)
+                {
+                    Dictionary<DatabaseID, UnitBlueprint> objdict = (Dictionary<DatabaseID, UnitBlueprint>)typeof(LandfallContentDatabase).GetField("m_unitBlueprints", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(CDB);
+                    foreach (var obj in blueprints)
+                    {
+                        if (reload)
+                        {
+                            if (objdict.ContainsKey(obj.Entity.GUID))
+                            {
+                                objdict.Remove(obj.Entity.GUID);
+                            }
+                            if (nonStreamableAssets.ContainsKey(obj.Entity.GUID))
+                            {
+                                nonStreamableAssets.Remove(obj.Entity.GUID);
+                            }
+                        }
+                        objdict.Add(obj.Entity.GUID, obj);
+                        nonStreamableAssets.Add(obj.Entity.GUID, obj);
+                    }
+                    typeof(LandfallContentDatabase).GetField("m_unitBlueprints", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(CDB, objdict);
+                }
+                if (factions.Count > 0)
+                {
+                    Dictionary<DatabaseID, Faction> objdict = (Dictionary<DatabaseID, Faction>)typeof(LandfallContentDatabase).GetField("m_factions", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(CDB);
+                    foreach (var obj in factions)
+                    {
+                        if (reload)
+                        {
+                            if (objdict.ContainsKey(obj.Entity.GUID))
+                            {
+                                objdict.Remove(obj.Entity.GUID);
+                            }
+                            if (nonStreamableAssets.ContainsKey(obj.Entity.GUID))
+                            {
+                                nonStreamableAssets.Remove(obj.Entity.GUID);
+                            }
+                        }
+                        objdict.Add(obj.Entity.GUID, obj);
+                        nonStreamableAssets.Add(obj.Entity.GUID, obj);
+                    }
+                    typeof(LandfallContentDatabase).GetField("m_factions", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(CDB, objdict);
+                }
+            }
+        }
+        public void Update()
+        {
+            //Keybind to reload assets
+            if (Input.GetKeyDown(KeyCode.F9))
+            {
+                LoadAssets(true);
+            }
+
+        }
         public static void LoadLevel()
         {
             GameModeService service = ServiceLocator.GetService<GameModeService>();
